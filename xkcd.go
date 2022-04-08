@@ -59,7 +59,7 @@ func main() {
 	dlList := splitSlice(missing, rateLimit)
 
 	for _, comics := range dlList {
-		getComicData(comics)
+		getComic(comics)
 	}
 }
 
@@ -122,7 +122,7 @@ func splitSlice(input []string, blockSize int) [][]string {
 	return output
 }
 
-func getComicData(dlList []string) {
+func getComic(dlList []string) {
 	var wg sync.WaitGroup
 
 	for _, item := range dlList {
@@ -215,36 +215,3 @@ func getComicData(dlList []string) {
 
 	wg.Wait()
 }
-
-//
-//func getComicImg(comic Comic) error {
-//	savePath := dbPath + strconv.Itoa(comic.Num)
-//	fmt.Println(savePath)
-//
-//	err := os.Mkdir(savePath, 0755)
-//	if err != nil {
-//		return err
-//	}
-//
-//	resp, err := http.Get(comic.Img)
-//	if err != nil {
-//		return err
-//	}
-//	defer resp.Body.Close()
-//
-//	splitUrl := strings.Split(comic.Img, "/")
-//	imgName := savePath + "/" + splitUrl[len(splitUrl)-1]
-//
-//	img, err := os.Create(imgName)
-//	if err != nil {
-//		return err
-//	}
-//	defer img.Close()
-//
-//	_, err = io.Copy(img, resp.Body)
-//	if err != nil {
-//		return err
-//	}
-//
-//	return nil
-//}
