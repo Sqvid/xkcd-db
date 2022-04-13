@@ -16,7 +16,6 @@ import (
 const (
 	xkcdURL  = "https://xkcd.com/"
 	jsonFile = "info.0.json"
-	dbPath   = "./xkcdDB/"
 )
 
 // Transcript and Alt are needed for searching.
@@ -29,7 +28,13 @@ type Comic struct {
 
 func main() {
 	rateLimit := flag.Int64("r", 20, "Set the maximum number of parallel downloads")
+	dbPath := flag.String("d", "./xkcdDB/", "Specify the path where the database should be built")
 	flag.Parse()
+
+	// Add trailing /
+	if (*dbPath)[len(*dbPath)-1] != '/' {
+		*dbPath = *dbPath + "/"
+	}
 
 	// The latest comic is used to find the number of comics.
 	numComics, err := latestComicNum()
@@ -37,16 +42,16 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	_, err = os.Stat(dbPath)
+	_, err = os.Stat(*dbPath)
 	if os.IsNotExist(err) {
-		fmt.Printf("%s does not exist. Creating...\n", dbPath)
-		err = os.Mkdir(dbPath, 0755)
+		fmt.Printf("%s does not exist. Creating...\n", *dbPath)
+		err = os.Mkdir(*dbPath, 0755)
 		if err != nil {
 			log.Fatalln(err)
 		}
 	}
 
-	missing := missingComics(numComics)
+	missing := missingComics(numComics, *dbPath)
 
 	if len(missing) == 0 {
 		fmt.Println("Found no missing comics")
@@ -56,7 +61,7 @@ func main() {
 	// Counting semaphore.
 	tokens := make(chan struct{}, *rateLimit)
 
-	getComic(missing, tokens)
+	getComic(missing, *dbPath, tokens)
 	fmt.Printf("Downloaded %d missing comics\n", len(missing))
 }
 
@@ -78,7 +83,7 @@ func latestComicNum() (int, error) {
 	return comicData.Num, nil
 }
 
-func missingComics(numComics int) []string {
+func missingComics(numComics int, dbPath string) []string {
 	dlList := make([]string, 0, numComics)
 
 	for i := 1; i <= numComics; i++ {
@@ -99,7 +104,7 @@ func missingComics(numComics int) []string {
 }
 
 // Tokens is a channel that acts as a counting semaphore.
-func getComic(dlList []string, tokens chan struct{}) {
+func getComic(dlList []string, dbPath string, tokens chan struct{}) {
 	var wg sync.WaitGroup
 
 	for _, item := range dlList {
