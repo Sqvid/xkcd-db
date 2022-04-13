@@ -142,26 +142,32 @@ func getComic(dlList []string, tokens chan struct{}) {
 				log.Fatalln(err)
 			}
 
-			alt, err := os.Create(savePath + item + "-alt")
-			if err != nil {
-				log.Fatalln(err)
-			}
-			defer alt.Close()
+			// Write alt data if it exists.
+			if comicData.Alt != "" {
+				alt, err := os.Create(savePath + item + "-alt")
+				if err != nil {
+					log.Fatalln(err)
+				}
+				defer alt.Close()
 
-			_, writeErr := alt.WriteString(comicData.Alt)
-			if writeErr != nil {
-				log.Fatalln(err)
+				_, writeErr := alt.WriteString(comicData.Alt)
+				if writeErr != nil {
+					log.Fatalln(err)
+				}
 			}
 
-			transcript, err := os.Create(savePath + item + "-transcript")
-			if err != nil {
-				log.Fatalln(err)
-			}
-			defer transcript.Close()
+			// Write transcript data if it exists.
+			if comicData.Transcript != "" {
+				transcript, err := os.Create(savePath + item + "-transcript")
+				if err != nil {
+					log.Fatalln(err)
+				}
+				defer transcript.Close()
 
-			_, writeErr = transcript.WriteString(comicData.Transcript)
-			if writeErr != nil {
-				log.Fatalln(err)
+				_, writeErr := transcript.WriteString(comicData.Transcript)
+				if writeErr != nil {
+					log.Fatalln(err)
+				}
 			}
 
 			// Write image files.
