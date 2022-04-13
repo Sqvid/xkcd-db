@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -27,14 +28,14 @@ type Comic struct {
 }
 
 func main() {
-	log.SetFlags(log.Llongfile)
+	rateLimit := flag.Int64("r", 20, "Set the maximum number of parallel downloads")
+	flag.Parse()
+
 	// The latest comic is used to find the number of comics.
 	numComics, err := latestComicNum()
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	rateLimit := 200
 
 	_, err = os.Stat(dbPath)
 	if os.IsNotExist(err) {
@@ -52,15 +53,11 @@ func main() {
 		return
 	}
 
-	fmt.Printf("Found %d missing comics\n", len(missing))
+	// Counting semaphore.
+	tokens := make(chan struct{}, *rateLimit)
 
-	// Divide missing comic numbers into blocks. This is prevent exceeding
-	// the socket limit.
-	dlList := splitSlice(missing, rateLimit)
-
-	for _, comics := range dlList {
-		getComic(comics)
-	}
+	getComic(missing, tokens)
+	fmt.Printf("Downloaded %d missing comics\n", len(missing))
 }
 
 func latestComicNum() (int, error) {
@@ -101,36 +98,21 @@ func missingComics(numComics int) []string {
 	return dlList
 }
 
-// Split a slice into smaller blocks and return them.
-func splitSlice(input []string, blockSize int) [][]string {
-	var nFullBlocks int = len(input) / blockSize
-	rem := len(input) % blockSize
-
-	output := make([][]string, 0, nFullBlocks+1)
-
-	for block := 0; block < nFullBlocks; block++ {
-		index := block * blockSize
-		output = append(output, input[index:index+blockSize])
-	}
-
-	// Handle remainder if any
-	if rem != 0 {
-		index := nFullBlocks * blockSize
-		output = append(output, input[index:index+rem])
-	}
-
-	return output
-}
-
-func getComic(dlList []string) {
+// Tokens is a channel that acts as a counting semaphore.
+func getComic(dlList []string, tokens chan struct{}) {
 	var wg sync.WaitGroup
 
 	for _, item := range dlList {
-		wg.Add(1)
 
 		// Start data fetching workers for missing comics.
+		wg.Add(1)
 		go func(item string) {
+			// Aquire a token.
+			tokens <- struct{}{}
+			// Release the token.
+			defer func() { <-tokens }()
 			defer wg.Done()
+
 			fmt.Printf("Fetching Comic #%s ...\n", item)
 
 			// Fetch comic metadata.
